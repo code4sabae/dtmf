@@ -1,0 +1,129 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>DTMF decoder</title>
+<script type="module">
+
+import { DTMF } from "./DTMF.js";
+import { FFT } from "./FFT.js";
+
+window.onload = () => {
+  document.body.onclick = init;
+};
+
+const init = async () => {
+  document.body.onclick = null;
+  notice.style.display = "none";
+
+  const fftsize = 13;
+
+  const fft = new FFT();
+  await fft.init(fftsize);
+  
+  const g = canvas.getContext('2d')
+  let buf = fft.getFreqs()
+
+  let bkcode = null;
+  let bkf = null;
+  const draw = function() {
+    canvas.width = canvas.clientWidth
+    canvas.height = canvas.clientHeight
+    const cw = canvas.width
+    const ch = canvas.height
+    const bw = cw / buf.length// * 10
+
+    buf = fft.getFreqs()
+    g.fillStyle = 'rgb(0, 0, 0)'
+    g.fillRect(0, 0, cw, ch)
+    let x = 0
+    for (let i = 0; i < buf.length; i++) {
+      const n = buf[i]
+      g.fillStyle = 'hsl(' + n + ',100%,50%)'
+      g.fillRect(x, ch - n, bw, n)
+      x += bw
+    }
+    const formant = fft.getFormant(buf)
+    if (formant.length > 1) {
+      const freq = formant[0][0];
+      const freq2 = formant[1][0];
+      const code = DTMF.decode(freq, freq2);
+      if (bkcode == null && code) {
+        bkcode = code;
+        ta.value += code;
+      }
+      if (!code) {
+        bkcode = code;
+      }
+      bkf = Math.floor(freq + .5) + "Hz " +  Math.floor(freq2 + .5) + "Hz " + code;
+    } else {
+      bkf = null;
+      bkcode = null;
+    }
+    //console.log(scale)
+    g.textAlign = "center"
+    g.fillStyle = "#fff"
+    g.font = "20vw sans-serif"
+    g.textBaseline = "bottom"
+    // g.fillText(bks, cw / 2, ch / 2)
+    g.font = "5vw sans-serif"
+    g.textBaseline = "top"
+    if (bkf) {
+      g.fillText(bkf, cw / 2, ch / 2)
+    }
+
+    requestAnimationFrame(draw)
+  }
+  draw()
+};
+btnclear.onclick = () => ta.value = "";
+</script>
+<style>
+body {
+  margin: 0;
+  x-background-color: black;
+  text-align: center;
+  font-family: sans-serif;
+}
+#canvas {
+  x-position: absolute;
+  width: 100vw;
+  height: 50vh;
+  background-color: black;
+}
+textarea {
+  width: 90vw;
+  height: 20vh;
+}
+button {
+  width: 50vw;
+  margin: 1vw;
+}
+h1 {
+}
+#notice {
+  position: absolute;
+  width: 100vw;
+  text-align: center;
+  padding: 30vh 0;
+  color: white;
+}
+.src {
+  margin: 1vh;
+}
+a {
+  color: gray !important;
+}
+</style>
+</head>
+<body>
+<h1>DTMF decoder</h1>
+<div id="notice">click to start</div>
+<canvas id="canvas" width="640" height="300"></canvas>
+<textarea id="ta"></textarea>
+<button id="btnclear">clear</button>
+
+<div class=src>
+  App: CC BY <a href=https://fukuno.jig.jp/3056>taisukef</a><br>
+</div>
+
+</body>
+</html>
